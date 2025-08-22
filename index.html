@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>XOR File Encrypt / Decrypt</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+    }
+    #preview, #encrypted-preview {
+      width: 300px;
+      height: 300px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 10px;
+      display: inline-block;
+    }
+    img, video {
+      max-width: 100%;
+      max-height: 100%;
+    }
+    #progress-bar {
+      width: 0%;
+      height: 20px;
+      background-color: #4CAF50;
+      transition: width 0.5s;
+    }
+    #progress-container {
+      width: 100%;
+      height: 20px;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h3>XOR File Encrypt / Decrypt</h3>
+  <input type="file" id="fileInput" />
+  <input type="text" id="keyInput" placeholder="Enter key" />
+  <button onclick="xorProcess()">Encrypt/Decrypt</button>
+  <div id="progress-container">
+    <div id="progress-bar"></div>
+  </div>
+  <div id="preview-container">
+    <h4>Original</h4>
+    <div id="preview"></div>
+  </div>
+  <div id="encrypted-preview-container">
+    <h4>Encrypted</h4>
+    <div id="encrypted-preview"></div>
+  </div>
+
+  <script>
+    function xorProcess() {
+      const file = document.getElementById("fileInput").files[0];
+      const key = document.getElementById("keyInput").value;
+      if (!file || !key) {
+        alert("Choose file and enter key!");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const keyBytes = [...key].map(c => c.charCodeAt(0));
+
+        // عرض المعاينة الأصلية
+        const originalBlob = new Blob([data], { type: file.type });
+        const originalUrl = URL.createObjectURL(originalBlob);
+        const previewElement = document.getElementById("preview");
+        previewElement.innerHTML = "";
+        if (file.type.startsWith("image/")) {
+          const img = document.createElement("img");
+          img.src = originalUrl;
+          previewElement.appendChild(img);
+        } else if (file.type.startsWith("video/")) {
+          const video = document.createElement("video");
+          video.src = originalUrl;
+          video.controls = true;
+          previewElement.appendChild(video);
+        }
+
+        // تشفير البيانات مع تقدم
+        const progressBar = document.getElementById("progress-bar");
+        progressBar.style.width = "0%";
+        const chunkSize = 1024 * 1024; // 1MB
+        const chunks = Math.ceil(data.length / chunkSize);
+        let currentChunk = 0;
+        function encryptChunk() {
+          const start = currentChunk * chunkSize;
+          const end = Math.min(start + chunkSize, data.length);
+          for (let i = start; i < end; i++) {
+            data[i] ^= keyBytes[i % keyBytes.length];
+          }
+          progressBar.style.width = ((currentChunk + 1) / chunks * 100) + "%";
+          currentChunk++;
+          if (currentChunk < chunks) {
+            setTimeout(encryptChunk, 0);
+          } else {
+            // عرض المعاينة المشفرة
+            const encryptedBlob = new Blob([data], { type: "application/octet-stream" });
+            const encryptedUrl = URL.createObjectURL(encryptedBlob);
+            const encryptedPreviewElement = document.getElementById("encrypted-preview");
+            encryptedPreviewElement.innerHTML = "";
+            if (file.type.startsWith("image/")) {
+              const img = document.createElement("img");
+              img.src = encryptedUrl;
+              encryptedPreviewElement.appendChild(img);
+            } else if (file.type.startsWith("video/")) {
+              const video = document.createElement("video");
+              video.src = encryptedUrl;
+              video.controls = true;
+              encryptedPreviewElement.appendChild(video);
+            }
+
+            // تحميل الملف المشفر
+            const link = document.createElement("a");
+            link.href = encryptedUrl;
+            link.download = "output_" + file.name;
+            link.click();
+          }
+        }
+        encryptChunk();
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  </script>
+</body>
